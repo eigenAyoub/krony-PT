@@ -12,13 +12,6 @@
 
 We reduce the size of GPT2 by compressing the MLPs weights (practically two thirds? of the model) of each attention layer with Kronecker Products. Effectively down-sizing GPT2 from 124M parameters to two variants, the 81M and 95M parameters models. Compared to other papers:
 
-* We don't use distillation (empirical evidence shows no benefits compared to only Vanilla supervised learning).
-* We have a systematic compression scheme, i.e., compress all layers the same way. We don't see any reasons to why we would only compress odd layers (besides to "force" the number of parameters to be under certain threshold).
-* We use weight tying, i.e., the embedding and softmax  matrices are **identical**. This makes our model, the only "effective" 81M model.
-* We try different compression schemes (67M, 81M, and 95M)
-    * We propose a new simple initialization for the 95M model. 
-    * We use multiple factors for the VL based inits.
-
 ---
 ## Results:<a name="results"> 
 
