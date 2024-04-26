@@ -13,5 +13,7 @@ wandb/
 models/
 hf/
 pics/
+VLs/
+VL2/
 
 

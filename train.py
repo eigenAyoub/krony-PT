@@ -290,12 +290,17 @@ while iter_num < cut_the_run:
 		losses = estimate_loss()
 		print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 		if wandb_log:
+			sc4 = model.state_dict()["transformer.h.0.mlp.scalers_fc"]
+			print(sc4)
 			wandb.log({
 				"iter": iter_num,
 				"train/loss": losses['train'],
 				"val/loss": losses['val'],
-				"lr": lr
-				#"mfu": running_mfu*100, # convert to percentage
+				"lr": lr,
+				"scaler:0": sc4[0], 
+				"scaler:1": sc4[1], 
+				"scaler:2": sc4[2], 
+				"scaler:3": sc4[3] 
 			})
 		if losses["val"] < bench:
 			bench = losses["val"]
@@ -312,12 +317,11 @@ while iter_num < cut_the_run:
 			logits, loss = model(X, Y)
 			loss = loss / gradient_accumulation_steps 
 		
-		# immediately async prefetch next batch while model is 
 		X, Y = get_batch('train')
 		# doing the forward pass on the GPU >> investigate this in detail, how does it happen.
 		scaler.scale(loss).backward()
 
-	print(f">>> Iter {iter_num} Loss {loss*gradient_accumulation_steps}")
+	#print(f">>> Iter {iter_num} Loss {loss*gradient_accumulation_steps}")
 
 	if grad_clip != 0.0:
 		scaler.unscale_(optimizer)
@@ -327,10 +331,6 @@ while iter_num < cut_the_run:
 	scaler.update()
 	optimizer.zero_grad(set_to_none=True)
 	
-    # systematic checkpoint-ing
-	#if iter_num % 9999 == 0 and master_process:
-		#print(f"Saving the checkpoint at iteration {iter_num}!")
-		#torch.save(model.state_dict(), f"check2/{wandb_run_name}_iteration_{iter_num}.pt")
 
 	iter_num += 1
 	local_iter_num += 1
@@ -339,7 +339,7 @@ while iter_num < cut_the_run:
 		break
 
 if master_process:
-    torch.save(model.state_dict(), f"check2/F_{wandb_run_name}_iteration_{iter_num}.pt")
+    torch.save(model.state_dict(), f"one_epoch/F_{wandb_run_name}_iteration_{iter_num}.pt")
     print("\n >>>> Some data stats >>>> \n")
     print(f"ddp_world_size {ddp_world_size}")
     print(f"gradient blabla {gradient_accumulation_steps}")
@@ -351,8 +351,8 @@ if master_process:
     print("\n >>>> Some data stats >>>> \n")
 
     print(">>>>> Training is starting now, here is some stats:")
+
     print("batch size",    batch_size) 
-    print("weight_decay",  weight_decay)  
     print("learning_rate", learning_rate) 
     print("weight_decay",  weight_decay)  
     print("min_lr",        min_lr)        

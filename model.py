@@ -88,21 +88,13 @@ class KronyMLP(nn.Module):
         self.dim1 = config.dim_1
         self.dim2 = config.dim_2
         
+        self.scalers_fc  = nn.Parameter(torch.ones(self.factors))
+        self.scalers_proj= nn.Parameter(torch.ones(self.factors))
+        
         self.c_fc_0   = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, self.dim1, self.dim2]))
         self.c_fc_1   = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, 768//self.dim1, 3072//self.dim2]))
         self.c_proj_0 = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, self.dim2, self.dim1]))
         self.c_proj_1 = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, 3072//self.dim2, 768//self.dim1]))
-
-# addition
-#			self.r1 = 1
-#			self.rank = 4 # should be between 0 and 12
-#			self.d1 = config.d1
-#			self.d2 = config.d2
-#			self.c_fc2_0   = nn.Parameter(torch.normal(0, 0.02, size = [1, self.d1, self.d2]))
-#			self.c_fc2_1   = nn.Parameter(torch.normal(0, 0.02, size = [1, 768//self.d1, 3072//self.d2]))
-#			self.c_proj2_0 = nn.Parameter(torch.normal(0, 0.02, size = [1, self.d2, self.d1]))
-#			self.c_proj2_1 = nn.Parameter(torch.normal(0, 0.02, size = [1, 3072//self.d2, 768//self.d1]))
-# addition
 
         self.c_fc_bias    = nn.Parameter(torch.zeros(3072))
         self.c_proj_bias  = nn.Parameter(torch.zeros(768))
@@ -111,16 +103,16 @@ class KronyMLP(nn.Module):
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x):
-        s_cfc =  torch.kron(self.c_fc_0[0], self.c_fc_1[0])
+        s_cfc =  torch.kron(self.c_fc_0[0], self.c_fc_1[0])*self.scalers_fc[0]
         for f in range(1, self.factors):
-            s_cfc += torch.kron(self.c_fc_0[f], self.c_fc_1[f])
+            s_cfc += torch.kron(self.c_fc_0[f], self.c_fc_1[f])*self.scalers_fc[f]
 
         x = x @ s_cfc + self.c_fc_bias
         x = self.gelu(x)
 
-        s_cproj =  torch.kron(self.c_proj_0[0], self.c_proj_1[0]) 
+        s_cproj =  torch.kron(self.c_proj_0[0], self.c_proj_1[0])*self.scalers_proj[0]
         for f in range(1, self.factors):
-            s_cproj += torch.kron(self.c_proj_0[f], self.c_proj_1[f])
+            s_cproj += torch.kron(self.c_proj_0[f], self.c_proj_1[f])*self.scalers_proj[f]
         
         x = x @ s_cproj  + self.c_proj_bias
         x = self.dropout(x)

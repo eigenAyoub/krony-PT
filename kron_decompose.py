@@ -16,7 +16,29 @@ from einops import rearrange
 from model import *
 from model_origin import *
 
-# add original link to the implementation. > I'm following her on Twitter, Hailey smth.
+import sys
+
+dim1 = int(sys.argv[1])
+dim2 = int(sys.argv[2])
+factors = int(sys.argv[3])
+
+config_args= dict(
+	n_layer=12, 
+	n_head=12, 
+	n_embd=768,
+	vocab_size = 50257,
+	block_size = 1024,
+	bias    = True,
+	dim_1   = dim1,
+	dim_2   = dim2,
+	factors = factors
+)
+
+conf_decomp = {
+	"dim"   : (dim1, dim2),  
+	"n_factors" : factors
+}
+
 def kronecker_decompose(A , m: int, n: int, *, k: int = 1, niter: int = 10):
 	"""
 		Frobenius-optimal decomposition of `A` into a sum of `k` Kronecker products.
@@ -53,47 +75,9 @@ def kronecker_decompose(A , m: int, n: int, *, k: int = 1, niter: int = 10):
 	scale = s[..., None, None].sqrt()
 	return u * scale, v * scale
 
-def kron_it(checkpoint, config: dict):
-	print(f"This will return two factors of dims {config['dim']} \
-     and {(3072//config['dim'][0], 768//config['dim'][1])}")
-
-	n_layer = 12      
-	fac = config["n_factors"]
-	new = dict()
-
-	for i in range(n_layer):
-		c_fc_key = f"transformer.h.{i}.mlp.c_fc.weight"
-		c_proj_key = f"transformer.h.{i}.mlp.c_proj.weight"
-
-		cfc_h = kronecker_decompose(
-			checkpoint[c_fc_key],
-			config["dim"][0],
-			config["dim"][1],
-			k = fac
-			)
-
-		cproj_h = kronecker_decompose(
-			checkpoint[c_proj_key],
-			config["dim"][1],
-			config["dim"][0],
-			k = fac
-			)
-
-		for f in range(fac):
-			for k in range(2):
-				fc = f"transformer.h.{i}.mlp.c_fc_{f}_{k}"
-				proj = f"transformer.h.{i}.mlp.c_proj_{f}_{k}" 
-				new[fc]   = cfc_h[k][f]
-				new[proj] =  cproj_h[k][f] 
-
-		new[f"{c_fc_key[:-7]}_bias"]   = gpt[f"{c_fc_key[:-7]}.bias"]
-		new[f"{c_proj_key[:-7]}_bias"] = gpt[f"{c_proj_key[:-7]}.bias"]
-		
-	return new
-
 def kron_it_2(checkpoint, config: dict):
-	print(f"This will return two factors of dims {config['dim']} \
-     and {(3072//config['dim'][0], 768//config['dim'][1])}")
+	print("This will return two factors of dims: ")
+	print(f">> fc: {config['dim']} and {(768//config['dim'][0], 3072//config['dim'][1])}")
 
 	n_layer = 12      
 	fac = config["n_factors"]
@@ -118,15 +102,21 @@ def kron_it_2(checkpoint, config: dict):
 			)
 
 		for k in range(2):
-			fc = f"transformer.h.{i}.mlp.c_fc_{k}"
+			fc   = f"transformer.h.{i}.mlp.c_fc_{k}"
 			proj = f"transformer.h.{i}.mlp.c_proj_{k}" 
 			new[fc]   = cfc_h[k]
 			new[proj] =  cproj_h[k]
 
 		new[f"{c_fc_key[:-7]}_bias"]   = checkpoint[f"{c_fc_key[:-7]}.bias"]
 		new[f"{c_proj_key[:-7]}_bias"] = checkpoint[f"{c_proj_key[:-7]}.bias"]
+
+		#new[f"transformer.h.{i}.mlp.scalers_fc"]   = torch.ones(factors) 
+		#new[f"transformer.h.{i}.mlp.scalers_proj"] = torch.ones(factors)
+		conv = [0.55, 0.25, 0.15, 0.05]
+		new[f"transformer.h.{i}.mlp.scalers_fc"]   = torch.tensor(conv)
+		new[f"transformer.h.{i}.mlp.scalers_proj"] = torch.tensor(conv)
+
 	return new
-# change here 
 
 device = torch.device("cuda")
 
@@ -136,35 +126,14 @@ gpt 	  = GPT2LMHeadModel.from_pretrained("gpt2")
 gpt2_sd   = gpt.state_dict()
 gpt2_keys = list(gpt2_sd.keys())
 
-
-
-dim1 = 256
-dim2 = 64
-factors = 10
-
-conf_decomp = {
-    "dim"   : (dim1, dim2),  # the dims of A (m_1, n_1) following latex notation
-	"n_factors" : factors
-}
-
-if True: # Setting up a quick KronyGPT
-	config_args = dict(
-		n_layer=12, 
-		n_head=12, 
-		n_embd=768,
-		vocab_size = 50257,
-		block_size = 1024,
-		bias = True,
-		dim_1 = dim1,
-		dim_2 = dim2,
-		factors = factors
-	)
-
 print("Loading KronyGPT")
 krony_conf = KronyGPTConfig(**config_args)
 kronyG = KronyGPT(krony_conf)
 krony_sd   = kronyG.state_dict()
 k_krony    = krony_sd.keys()
+
+#scalers_keys = [k for k in k_krony if "scalers" in k]
+#print("the scalers are", scalers_keys)
 
 print("Decompositio hao")
 kron_decomp = kron_it_2(gpt2_sd, conf_decomp)
@@ -178,50 +147,38 @@ for k in gpt2_keys:
 
 rest = [i for i in k_krony if i not in kron_decomp.keys()]
 
-for i in rest:
-    kron_decomp[i] = gpt2_sd[i]
+#print(">> the rest is: ")
+#[print(r_key) for r_key in rest]
+
+for r_key in rest:
+	assert krony_sd[r_key].shape == gpt2_sd[r_key].shape, "dimensions do not match"
+	kron_decomp[r_key] = gpt2_sd[r_key]
 
 kronyG.load_state_dict(kron_decomp) 
 
 print("3. Saving!")
-torch.save(kron_decomp, "VLs/VL_256_64_10.pt")
+
+torch.save(kron_decomp, f"VL2/VL2_{dim1}_{dim2}_{factors}_conv.pt")
+
+
+
+print("Some dimensions for the eye:")
+
+i = 5
+c_fc_key = f"transformer.h.{i}.mlp.c_fc.weight"
+c_proj_key = f"transformer.h.{i}.mlp.c_proj.weight"
+
+fc_0   = f"transformer.h.{i}.mlp.c_fc_0"
+fc_1   = f"transformer.h.{i}.mlp.c_fc_1"
+proj_0 = f"transformer.h.{i}.mlp.c_proj_0"
+proj_1 = f"transformer.h.{i}.mlp.c_proj_1"
+
+print(fc_0   , kron_decomp[fc_0].shape)
+print(fc_1   , kron_decomp[fc_1].shape)
+print(proj_0 , kron_decomp[proj_0].shape)
+print(proj_1 , kron_decomp[proj_1].shape)
 
 """
-## Mainly for debug. / please do not delete this:
-
-
-if True:
-	i = 5
-	c_fc_key = f"transformer.h.{i}.mlp.c_fc.weight"
-	c_proj_key = f"transformer.h.{i}.mlp.c_proj.weight"
-
-	fc_0 = f"transformer.h.{i}.mlp.c_fc_0"
-	fc_1 = f"transformer.h.{i}.mlp.c_fc_1"
-	proj_0 = f"transformer.h.{i}.mlp.c_proj_0"
-	proj_1 = f"transformer.h.{i}.mlp.c_proj_1"
-
-	print(kron_decomp[fc_0].shape)
-	print(kron_decomp[fc_1].shape)
-	print(kron_decomp[proj_0].shape)
-	print(kron_decomp[proj_1].shape)
-
-##### Testing: ##########################################################################
-
-if True:
-	i = 5
-	c_fc_key = f"transformer.h.{i}.mlp.c_fc.weight"
-	c_proj_key = f"transformer.h.{i}.mlp.c_proj.weight"
-
-	fc_0 = f"transformer.h.{i}.mlp.c_fc_0"
-	fc_1 = f"transformer.h.{i}.mlp.c_fc_1"
-	proj_0 = f"transformer.h.{i}.mlp.c_proj_0"
-	proj_1 = f"transformer.h.{i}.mlp.c_proj_1"
-
-	print(kron_decomp[fc_0].shape)
-	print(kron_decomp[fc_1].shape)
-	print(kron_decomp[proj_0].shape)
-	print(kron_decomp[proj_1].shape)
-
 
 # test of decomposition of one Kronecker matrix:
 def quick_test(k_gpt2, ff: int):
