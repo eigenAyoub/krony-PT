@@ -301,6 +301,7 @@ class KronyGPT(nn.Module):
         return model
 
     def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
+
         param_dict = {pn: p for pn, p in self.named_parameters() if p.requires_grad}
 
         # create optim groups. Any parameters that is 2D will be weight decayed, 
@@ -311,15 +312,17 @@ class KronyGPT(nn.Module):
         decay_params = [p for n, p in param_dict.items() if all([p.dim() >= 2, 
                                                                  not n.endswith("_1"),
                                                                  not n.endswith("_0")])]
+
         nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2]
-        # new_guys are the newly introduced parameters, not the ones already trained.
-        # these are the Kronecker Factors.
-        new_guys= [p for n, p in param_dict.items() if any([n.endswith("_0"), n.endswith("_1")])]
+        new_guys = [p for n, p in param_dict.items() if any([n.endswith("_0"), n.endswith("_1")])]
+        
+#       embeddings = [ ]
 
         optim_groups = [
             {'params': decay_params, 'weight_decay': 0.0},
             {'params': nodecay_params, 'weight_decay': 0.0 },
-            {'params': new_guys, 'weight_decay': weight_decay}
+            {'params': new_guys, 'weight_decay': weight_decay},
+            #{'params': embeddings , 'lr': 0.0},
         ]
 
         num_decay_params = sum(p.numel() for p in decay_params)
@@ -334,7 +337,10 @@ class KronyGPT(nn.Module):
         fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
         use_fused = fused_available and device_type == 'cuda'
         extra_args = dict(fused=True) if use_fused else dict()
+
+        # there you Go >> 
         optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
+
         print(f"using fused AdamW: {use_fused}")
 
         return optimizer

@@ -112,7 +112,7 @@ def kron_it_2(checkpoint, config: dict):
 
 		#new[f"transformer.h.{i}.mlp.scalers_fc"]   = torch.ones(factors) 
 		#new[f"transformer.h.{i}.mlp.scalers_proj"] = torch.ones(factors)
-		conv = [0.55, 0.25, 0.15, 0.05]
+		conv = [3.5, 3.0, 3.0, 2.5]
 		new[f"transformer.h.{i}.mlp.scalers_fc"]   = torch.tensor(conv)
 		new[f"transformer.h.{i}.mlp.scalers_proj"] = torch.tensor(conv)
 
@@ -158,8 +158,7 @@ kronyG.load_state_dict(kron_decomp)
 
 print("3. Saving!")
 
-torch.save(kron_decomp, f"VL2/VL2_{dim1}_{dim2}_{factors}_conv.pt")
-
+torch.save(kron_decomp, f"VL2/VL2_{dim1}_{dim2}_{factors}_high_comb.pt")
 
 
 print("Some dimensions for the eye:")

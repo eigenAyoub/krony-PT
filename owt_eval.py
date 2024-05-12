@@ -12,7 +12,6 @@ path_checkpoint = sys.argv[1]
 print("loading the checkpoint >> ", path_checkpoint)
 sd_krony =  torch.load(path_checkpoint)
 
-
 # infering the dims from the shape of the c_proj of the first layer.
 c_proj = sd_krony["transformer.h.0.mlp.c_proj_0"].shape
 dim1    = c_proj[2] 
@@ -70,3 +69,31 @@ krony.to(device)
 
 print(estimate_loss(krony))
 
+"""
+import torch
+import numpy as np
+from model import *
+import sys
+p = './check2/VL2_256_1024_4_comb_2.pt_mid_lr_iteration_70850.pt'
+sd_krony =  torch.load(p)
+c_proj = sd_krony["transformer.h.0.mlp.c_proj_0"].shape
+dim1    = c_proj[2] 
+dim2    = c_proj[1] 
+factors = c_proj[0] 
+config_args = dict(
+    n_layer=12, 
+    n_head=12, 
+    n_embd=768,
+    vocab_size = 50257,
+    block_size = 1024,
+    bias = True,
+    dim_1 = dim1,
+    dim_2 = dim2, 
+    factors = factors
+)
+batch_size = 32
+block_size = config_args["block_size"]
+device = "cuda"
+device_type = "cuda"
+eval_iters = 200 
+"""

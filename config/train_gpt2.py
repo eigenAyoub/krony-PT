@@ -12,9 +12,8 @@ wandb_project = 'one_epoch'
 # wandb 
 
 init_from = "else"
-init_name = "./VL2/VL2_256_1024_4_conv.pt"
-wandb_run_name= init_name[5:] 
-
+init_name = "./VL2/VL2_256_1024_4_high_comb.pt"
+wandb_run_name= init_name[6:] 
 
 eval_iters = 20      
 log_interval = 100   
@@ -22,9 +21,9 @@ block_size = 1024
 
 # lr stuff
 
-learning_rate = 6e-5
+learning_rate = 6e-4
 weight_decay = 1e-1
-min_lr = 6e-5
+min_lr = 6e-4
 decay_lr = False 
 
 warmup_iters =  100

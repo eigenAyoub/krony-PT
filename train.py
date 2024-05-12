@@ -291,7 +291,8 @@ while iter_num < cut_the_run:
 		print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 		if wandb_log:
 			sc4 = model.state_dict()["transformer.h.0.mlp.scalers_fc"]
-			print(sc4)
+			sc4_11 = model.state_dict()["transformer.h.11.mlp.scalers_fc"]
+			#print(sc4)
 			wandb.log({
 				"iter": iter_num,
 				"train/loss": losses['train'],
@@ -300,7 +301,11 @@ while iter_num < cut_the_run:
 				"scaler:0": sc4[0], 
 				"scaler:1": sc4[1], 
 				"scaler:2": sc4[2], 
-				"scaler:3": sc4[3] 
+				"scaler:3": sc4[3],
+				"scaler:0_11": sc4_11[0], 
+				"scaler:1_11": sc4_11[1], 
+				"scaler:2_11": sc4_11[2], 
+				"scaler:3_11": sc4_11[3] 
 			})
 		if losses["val"] < bench:
 			bench = losses["val"]
