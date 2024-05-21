@@ -78,6 +78,7 @@ if True:
     dim1 = 17
     dim2 = 177
     factors = 1000
+    scalers = 523
 
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open('configurator.py').read()) # overrides from command line or config file
@@ -156,7 +157,8 @@ model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=bloc
                   bias=bias, vocab_size=None, dropout=dropout, 
                   dim_1=dim1, 
                   dim_2=dim2,
-                  factors = factors
+                  factors = factors,
+                  scalers = scalers
                   ) # start with model_args from command line
 
 ## params loading scratch / resume of gpt2
@@ -186,6 +188,7 @@ else:
     model_args["dim_1"] = dim1
     model_args["dim_2"] = dim2
     model_args["factors"] = facs
+    model_args["scalers"] = scalers
 
     model_args['vocab_size'] = 50257
     model_args['bias'] = True
@@ -255,6 +258,8 @@ if master_process:
     print("max_iters",     max_iters)     
     print("warmup_iters",  warmup_iters)  
     print("lr_decay_iters",lr_decay_iters)
+    print("number of factors", model_args["factors"])
+    print("scalers, yes or no", model_args["scalers"])
 
 # learning rate decay scheduler (cosine with warmup)
 def get_lr(it):
@@ -292,23 +297,30 @@ while iter_num < cut_the_run:
 		losses = estimate_loss()
 		print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 		if wandb_log:
-			sc4 = model.state_dict()["transformer.h.0.mlp.scalers_fc"]
-			sc4_11 = model.state_dict()["transformer.h.11.mlp.scalers_fc"]
-			#print(sc4)
-			wandb.log({
-				"iter": iter_num,
-				"train/loss": losses['train'],
-				"val/loss": losses['val'],
-				"lr": lr,
-				"scaler:0": sc4[0], 
-				"scaler:1": sc4[1], 
-				"scaler:2": sc4[2], 
-				"scaler:3": sc4[3],
-				"scaler:0_11": sc4_11[0], 
-				"scaler:1_11": sc4_11[1], 
-				"scaler:2_11": sc4_11[2], 
-				"scaler:3_11": sc4_11[3] 
-			})
+			if model_args["scalers"]:
+				sc4 = model.state_dict()["transformer.h.0.mlp.scalers_fc"]
+				sc4_11 = model.state_dict()["transformer.h.11.mlp.scalers_fc"]
+				wandb.log({
+					"iter": iter_num,
+					"train/loss": losses['train'],
+					"val/loss": losses['val'],
+					"lr": lr,
+					"scaler:0": sc4[0], 
+					"scaler:1": sc4[1], 
+					"scaler:2": sc4[2], 
+					"scaler:3": sc4[3],
+					"scaler:0_11": sc4_11[0], 
+					"scaler:1_11": sc4_11[1], 
+					"scaler:2_11": sc4_11[2], 
+					"scaler:3_11": sc4_11[3] 
+				})
+			else:
+				wandb.log({
+					"iter": iter_num,
+					"train/loss": losses['train'],
+					"val/loss": losses['val'],
+					"lr": lr,
+				})
 		if losses["val"] < bench:
 			bench = losses["val"]
 			print(f"Saving the checkpoint at iteration {iter_num}! for {bench}")

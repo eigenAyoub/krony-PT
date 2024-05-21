@@ -81,30 +81,30 @@ class CausalSelfAttention(nn.Module):
         return y
 
 class KronyMLP(nn.Module):
-    def __init__(self, config):
-        super().__init__()
+	def __init__(self, config):
+		super().__init__()
 
-        self.factors = config.factors
-        self.dim1 = config.dim_1
-        self.dim2 = config.dim_2
-        
-        
-        self.c_fc_0   = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, self.dim1, self.dim2]))
-        self.c_fc_1   = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, 768//self.dim1, 3072//self.dim2]))
-        self.c_proj_0 = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, self.dim2, self.dim1]))
-        self.c_proj_1 = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, 3072//self.dim2, 768//self.dim1]))
+		self.factors = config.factors
+		self.scalers = config.scalers
+		self.dim1 = config.dim_1
+		self.dim2 = config.dim_2
+		
+		self.c_fc_0   = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, self.dim1, self.dim2]))
+		self.c_fc_1   = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, 768//self.dim1, 3072//self.dim2]))
+		self.c_proj_0 = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, self.dim2, self.dim1]))
+		self.c_proj_1 = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, 3072//self.dim2, 768//self.dim1]))
 
-        self.c_fc_bias    = nn.Parameter(torch.zeros(3072))
-        self.c_proj_bias  = nn.Parameter(torch.zeros(768))
+		self.c_fc_bias    = nn.Parameter(torch.zeros(3072))
+		self.c_proj_bias  = nn.Parameter(torch.zeros(768))
 
-        self.gelu    = nn.GELU()
-        self.dropout = nn.Dropout(config.dropout)
-
+		self.gelu    = nn.GELU()
+		self.dropout = nn.Dropout(config.dropout)
+		
 		if self.scalers:
 			self.scalers_fc  = nn.Parameter(torch.ones(self.factors))
 			self.scalers_proj= nn.Parameter(torch.ones(self.factors))
 
-    def forward(self, x):
+	def forward(self, x):
 		# depends on which mode we operating in, we either have or don't have scalers.
 		if self.scalers:
 			s_cfc =  torch.kron(self.c_fc_0[0], self.c_fc_1[0])*self.scalers_fc[0]
@@ -121,7 +121,8 @@ class KronyMLP(nn.Module):
 			x = x @ s_cproj  + self.c_proj_bias
 			x = self.dropout(x)
 		else:  
-			assert self.scalers == False, "smth is extremely wrong here"
+			assert self.scalers == 0, "smth is extremely wrong here"
+
 			s_cfc =  torch.kron(self.c_fc_0[0], self.c_fc_1[0])
 			for f in range(1, self.factors):
 				s_cfc += torch.kron(self.c_fc_0[f], self.c_fc_1[f])
@@ -135,7 +136,7 @@ class KronyMLP(nn.Module):
 
 			x = x @ s_cproj  + self.c_proj_bias
 			x = self.dropout(x)
-        return x
+		return x
 
 # this is one attention block with multiple heads
 class KronyBlock(nn.Module):
@@ -163,6 +164,8 @@ class KronyGPTConfig:
     dim_1: int = 19
     dim_2: int = 18
     factors: int = 1
+    scalers: int = 0  # if 0, the factors won't have scalers sum_i {A_i x B_i}   || if 1 >>   sum_i {s_i (A_i x B_i)}
+            
 
 class KronyGPT(nn.Module):
 

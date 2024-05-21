@@ -6,14 +6,19 @@ gradient_accumulation_steps = 5
 batch_size = 24
 eval_interval = 50   # freq. wandb send
 
-wandb_log = False
-wandb_project = 'one_epoch'
 
 # wandb 
 
 init_from = "else"
-init_name = "./VL2/VL2_256_1024_4_high_comb.pt"
+
+init_name = "./VL2/VL2_256_1024_4_1.pt"
+scalers = 1   ## a MUST
+wandb_log = True
+wandb_project = 'one_epoch'
+
 wandb_run_name= init_name[6:] 
+
+
 
 eval_iters = 20      
 log_interval = 100   

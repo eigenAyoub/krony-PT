@@ -1,5 +1,6 @@
 """
 This script:
+
 1. Loads the GPT2 checkpoints from HF (that are already stored localy)
 2. Decomposes the weights using the Van Loan method.
 3. Creates a new state dict that matches the KronyGPT state dict
@@ -8,6 +9,8 @@ This script:
 
 To play with it:
 change the **conf** dict to your liking.
+$ python kron_decompose.py dim1 dim2 factors scalers
+$ python kron_decompose.py dim1 dim2 facotors=4 scalers=1 1.0 2.0 3.0 4.0 
 
 """
 
@@ -18,10 +21,17 @@ from model_origin import *
 
 import sys
 
-dim1 = int(sys.argv[1])
-dim2 = int(sys.argv[2])
+dim1 	= int(sys.argv[1])
+dim2 	= int(sys.argv[2])
 factors = int(sys.argv[3])
+scalers_ = int(sys.argv[4])
 
+if scalers_ == 1:
+    sc_1 = float(sys.argv[5])
+    sc_2 = float(sys.argv[6])
+    sc_3 = float(sys.argv[7])
+    sc_4 = float(sys.argv[8])
+ 
 config_args= dict(
 	n_layer=12, 
 	n_head=12, 
@@ -31,13 +41,10 @@ config_args= dict(
 	bias    = True,
 	dim_1   = dim1,
 	dim_2   = dim2,
-	factors = factors
+	factors = factors,
+	scalers = scalers_
 )
 
-conf_decomp = {
-	"dim"   : (dim1, dim2),  
-	"n_factors" : factors
-}
 
 def kronecker_decompose(A , m: int, n: int, *, k: int = 1, niter: int = 10):
 	"""
@@ -77,10 +84,11 @@ def kronecker_decompose(A , m: int, n: int, *, k: int = 1, niter: int = 10):
 
 def kron_it_2(checkpoint, config: dict):
 	print("This will return two factors of dims: ")
-	print(f">> fc: {config['dim']} and {(768//config['dim'][0], 3072//config['dim'][1])}")
+	print(f">> dims for fc_0 >> {(768//config['dim_1'], 3072//config['dim_2'])}")
 
-	n_layer = 12      
-	fac = config["n_factors"]
+	n_layer = config["n_layer"]  
+	fac 	= config["factors"]
+
 	new = dict()
 
 	for i in range(n_layer):
@@ -89,32 +97,31 @@ def kron_it_2(checkpoint, config: dict):
 
 		cfc_h = kronecker_decompose(
 			checkpoint[c_fc_key],
-			config["dim"][0],
-			config["dim"][1],
+			config["dim_1"],
+			config["dim_2"],
 			k = fac
 			)
 
 		cproj_h = kronecker_decompose(
 			checkpoint[c_proj_key],
-			config["dim"][1],
-			config["dim"][0],
+			config["dim_2"],
+			config["dim_1"],
 			k = fac
 			)
 
 		for k in range(2):
-			fc   = f"transformer.h.{i}.mlp.c_fc_{k}"
-			proj = f"transformer.h.{i}.mlp.c_proj_{k}" 
-			new[fc]   = cfc_h[k]
-			new[proj] =  cproj_h[k]
+			fc   		= f"transformer.h.{i}.mlp.c_fc_{k}"
+			proj 		= f"transformer.h.{i}.mlp.c_proj_{k}" 
+			new[fc]   	= cfc_h[k]
+			new[proj] 	= cproj_h[k]
 
 		new[f"{c_fc_key[:-7]}_bias"]   = checkpoint[f"{c_fc_key[:-7]}.bias"]
 		new[f"{c_proj_key[:-7]}_bias"] = checkpoint[f"{c_proj_key[:-7]}.bias"]
 
-		#new[f"transformer.h.{i}.mlp.scalers_fc"]   = torch.ones(factors) 
-		#new[f"transformer.h.{i}.mlp.scalers_proj"] = torch.ones(factors)
-		conv = [3.5, 3.0, 3.0, 2.5]
-		new[f"transformer.h.{i}.mlp.scalers_fc"]   = torch.tensor(conv)
-		new[f"transformer.h.{i}.mlp.scalers_proj"] = torch.tensor(conv)
+		if config["scalers"]:	
+			conv = [sc_1, sc_2, sc_3, sc_4]
+			new[f"transformer.h.{i}.mlp.scalers_fc"]   = torch.tensor(conv)
+			new[f"transformer.h.{i}.mlp.scalers_proj"] = torch.tensor(conv)
 
 	return new
 
@@ -136,7 +143,7 @@ k_krony    = krony_sd.keys()
 #print("the scalers are", scalers_keys)
 
 print("Decompositio hao")
-kron_decomp = kron_it_2(gpt2_sd, conf_decomp)
+kron_decomp = kron_it_2(gpt2_sd, config_args)
 
 decomp_keys = list(kron_decomp.keys())
 transposed = ['attn.c_attn.weight', 'attn.c_proj.weight']
@@ -147,9 +154,6 @@ for k in gpt2_keys:
 
 rest = [i for i in k_krony if i not in kron_decomp.keys()]
 
-#print(">> the rest is: ")
-#[print(r_key) for r_key in rest]
-
 for r_key in rest:
 	assert krony_sd[r_key].shape == gpt2_sd[r_key].shape, "dimensions do not match"
 	kron_decomp[r_key] = gpt2_sd[r_key]
@@ -158,8 +162,7 @@ kronyG.load_state_dict(kron_decomp)
 
 print("3. Saving!")
 
-torch.save(kron_decomp, f"VL2/VL2_{dim1}_{dim2}_{factors}_high_comb.pt")
-
+torch.save(kron_decomp, f"VL2/VL2_{dim1}_{dim2}_{factors}_{scalers_}.pt")
 
 print("Some dimensions for the eye:")
 
@@ -172,13 +175,14 @@ fc_1   = f"transformer.h.{i}.mlp.c_fc_1"
 proj_0 = f"transformer.h.{i}.mlp.c_proj_0"
 proj_1 = f"transformer.h.{i}.mlp.c_proj_1"
 
-print(fc_0   , kron_decomp[fc_0].shape)
-print(fc_1   , kron_decomp[fc_1].shape)
-print(proj_0 , kron_decomp[proj_0].shape)
-print(proj_1 , kron_decomp[proj_1].shape)
+print(fc_0  , kron_decomp[fc_0].shape)
+print(fc_1  , kron_decomp[fc_1].shape)
+print(proj_0, kron_decomp[proj_0].shape)
+print(proj_1, kron_decomp[proj_1].shape)
+
+
 
 """
-
 # test of decomposition of one Kronecker matrix:
 def quick_test(k_gpt2, ff: int):
 	# Test if the sum of factors of Kroneckers is equal to the original one.
