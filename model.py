@@ -88,8 +88,6 @@ class KronyMLP(nn.Module):
         self.dim1 = config.dim_1
         self.dim2 = config.dim_2
         
-        self.scalers_fc  = nn.Parameter(torch.ones(self.factors))
-        self.scalers_proj= nn.Parameter(torch.ones(self.factors))
         
         self.c_fc_0   = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, self.dim1, self.dim2]))
         self.c_fc_1   = nn.Parameter(torch.normal(0, 0.02, size = [self.factors, 768//self.dim1, 3072//self.dim2]))
@@ -102,20 +100,41 @@ class KronyMLP(nn.Module):
         self.gelu    = nn.GELU()
         self.dropout = nn.Dropout(config.dropout)
 
+		if self.scalers:
+			self.scalers_fc  = nn.Parameter(torch.ones(self.factors))
+			self.scalers_proj= nn.Parameter(torch.ones(self.factors))
+
     def forward(self, x):
-        s_cfc =  torch.kron(self.c_fc_0[0], self.c_fc_1[0])*self.scalers_fc[0]
-        for f in range(1, self.factors):
-            s_cfc += torch.kron(self.c_fc_0[f], self.c_fc_1[f])*self.scalers_fc[f]
+		# depends on which mode we operating in, we either have or don't have scalers.
+		if self.scalers:
+			s_cfc =  torch.kron(self.c_fc_0[0], self.c_fc_1[0])*self.scalers_fc[0]
+			for f in range(1, self.factors):
+				s_cfc += torch.kron(self.c_fc_0[f], self.c_fc_1[f])*self.scalers_fc[f]
 
-        x = x @ s_cfc + self.c_fc_bias
-        x = self.gelu(x)
+			x = x @ s_cfc + self.c_fc_bias
+			x = self.gelu(x)
 
-        s_cproj =  torch.kron(self.c_proj_0[0], self.c_proj_1[0])*self.scalers_proj[0]
-        for f in range(1, self.factors):
-            s_cproj += torch.kron(self.c_proj_0[f], self.c_proj_1[f])*self.scalers_proj[f]
-        
-        x = x @ s_cproj  + self.c_proj_bias
-        x = self.dropout(x)
+			s_cproj =  torch.kron(self.c_proj_0[0], self.c_proj_1[0])*self.scalers_proj[0]
+			for f in range(1, self.factors):
+				s_cproj += torch.kron(self.c_proj_0[f], self.c_proj_1[f])*self.scalers_proj[f]
+
+			x = x @ s_cproj  + self.c_proj_bias
+			x = self.dropout(x)
+		else:  
+			assert self.scalers == False, "smth is extremely wrong here"
+			s_cfc =  torch.kron(self.c_fc_0[0], self.c_fc_1[0])
+			for f in range(1, self.factors):
+				s_cfc += torch.kron(self.c_fc_0[f], self.c_fc_1[f])
+
+			x = x @ s_cfc + self.c_fc_bias
+			x = self.gelu(x)
+
+			s_cproj =  torch.kron(self.c_proj_0[0], self.c_proj_1[0])
+			for f in range(1, self.factors):
+				s_cproj += torch.kron(self.c_proj_0[f], self.c_proj_1[f])
+
+			x = x @ s_cproj  + self.c_proj_bias
+			x = self.dropout(x)
         return x
 
 # this is one attention block with multiple heads

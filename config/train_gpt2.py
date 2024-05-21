@@ -6,7 +6,7 @@ gradient_accumulation_steps = 5
 batch_size = 24
 eval_interval = 50   # freq. wandb send
 
-wandb_log = True 
+wandb_log = False
 wandb_project = 'one_epoch'
 
 # wandb 
@@ -26,8 +26,21 @@ weight_decay = 1e-1
 min_lr = 6e-4
 decay_lr = False 
 
-warmup_iters =  100
 
+"""
+## Delete // this is me purely experimenting here
+learning_rate = 6e-2
+weight_decay = 1e-1
+min_lr = 6e-2
+
+max_iters = 3000 
+gradient_accumulation_steps = 10
+batch_size = 64 
+eval_interval = 10   # freq. wandb send
+## Delete // this is me purely experimenting here
+"""
+
+warmup_iters =  100
 cut_the_run    = max_iters 
 lr_decay_iters = max_iters 
 
