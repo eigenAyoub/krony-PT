@@ -11,8 +11,12 @@ import sys
 path_checkpoint = sys.argv[1] 
 print("loading the checkpoint >> ", path_checkpoint)
 sd_krony =  torch.load(path_checkpoint)
+scalers_ = 'transformer.h.0.mlp.scalers_fc' in sd_krony.keys()
+
+print(f">>> Hey, do we have scalers > {scalers_}")
 
 # infering the dims from the shape of the c_proj of the first layer.
+
 c_proj = sd_krony["transformer.h.0.mlp.c_proj_0"].shape
 dim1    = c_proj[2] 
 dim2    = c_proj[1] 
@@ -27,6 +31,7 @@ config_args = dict(
     bias = True,
     dim_1 = dim1,
     dim_2 = dim2, 
+    scalers = scalers_,
     factors = factors
 )
 

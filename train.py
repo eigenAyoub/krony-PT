@@ -287,12 +287,21 @@ raw_model = model.module if ddp else model # unwrap DDP container if needed
 running_mfu = -1.0
 
 bench = 3.12
-while iter_num < cut_the_run:
+#while iter_num < cut_the_run:
+while iter_num < 500:
 # determine and set the learning rate for this iteration
 	lr = get_lr(iter_num) if decay_lr else learning_rate
 	for param_group in optimizer.param_groups:
-		param_group['lr'] = lr
+		if param_group["name"] != "frozen":
+			print(lr, "for ", param_group["name"])
+			param_group['lr'] = lr
 
+	p1 = model.state_dict()["transformer.wte.weight"]
+	p2 = model.state_dict()["transformer.h.8.mlp.c_proj_0"]
+	p3 = model.state_dict()["transformer.wte.weight"]
+ 
+	#print(p1)
+ 
 	if iter_num % eval_interval == 0 and master_process:
 		losses = estimate_loss()
 		print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")

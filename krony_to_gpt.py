@@ -13,7 +13,8 @@ $ python krony_to_gpt.py  ./path/to/check.pt  output_dir
 """
 
 src  = sys.argv[1]  # should be complete ./dest/to/check.pt from where you're running the code
-dest = sys.argv[2]
+scalers_ = int(sys.argv[2])	
+dest = sys.argv[3]
 
 sd_krony =  torch.load(src)
 # infering the dims from the shape of the c_proj of the first layer.
@@ -31,6 +32,7 @@ config_args = dict(
     bias = True,
     dim_1 = dim1,
     dim_2 = dim2, 
+	scalers = scalers_,
     factors = facs
 )
 

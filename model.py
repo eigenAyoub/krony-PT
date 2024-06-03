@@ -331,29 +331,50 @@ class KronyGPT(nn.Module):
         # i.e. all weight tensors in matmuls + embeddings decay, 
         # all biases and layernorms don't.
         
-        decay_params = [p for n, p in param_dict.items() if all([p.dim() >= 2, 
-                                                                 not n.endswith("_1"),
-                                                                 not n.endswith("_0")])]
+        #decay_params = [p for n, p in param_dict.items() if all([p.dim() >= 2, not n.endswith("_1"), not n.endswith("_0")])]
+        decay_params = [
+            p for n, p in param_dict.items() if all([p.dim() >= 2, 
+                                                                n!= "transformer.wte.weight",
+                                                                "scalers" not in n
+                                                    ])
+        ]
 
-        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2]
-        new_guys = [p for n, p in param_dict.items() if any([n.endswith("_0"), n.endswith("_1")])]
+        nodecay_params = [p for n, p in param_dict.items() if all([p.dim() < 2, "scalers" not in n])]
+
+        frozed_params = [p  for n,p in param_dict.items() if "scalers" in n] + [param_dict["transformer.wte.weight"]]
+
+        l1 = [
+            n for n, p in param_dict.items() if all([p.dim() >= 2, 
+                                                                n!= "transformer.wte.weight",
+                                                                "scalers" not in n
+                                                    ])
+        ]
+
+        l2 = [n for n, p in param_dict.items() if all([p.dim() < 2, "scalers" not in n])]
+        l3 = [n  for n,p in param_dict.items() if "scalers" in n] + ["transformer.wte.weight"]
         
-#       embeddings = [ ]
+        print(">>>> hey")
+        print("> ",[i for i in l1 if i in l2])
+        print("> ",[i for i in l2 if i in l3])
+        print("> ",[i for i in l1 if i in l3])
 
         optim_groups = [
-            {'params': decay_params, 'weight_decay': 0.0},
-            {'params': nodecay_params, 'weight_decay': 0.0 },
-            {'params': new_guys, 'weight_decay': weight_decay},
-            #{'params': embeddings , 'lr': 0.0},
+            {'params': decay_params, 'name':"decay", 'weight_decay': weight_decay},
+            {'params': nodecay_params, 'name':"no_decay", 'weight_decay': 0.0 },
+            {
+                'params': frozed_params, 
+                'name':"frozen", 
+                'lr': 0.0
+            },
         ]
 
         num_decay_params = sum(p.numel() for p in decay_params)
         num_nodecay_params = sum(p.numel() for p in nodecay_params)
-        num_new_guys = sum(p.numel() for p in new_guys)
+        num_frozen_params = sum(p.numel() for p in frozed_params)
 
         print(f"num decayed parameter tensors: {len(decay_params)}, with {num_decay_params:,} parameters")
         print(f"num non-decayed parameter tensors: {len(nodecay_params)}, with {num_nodecay_params:,} parameters")
-        print(f"num of new parameter tensors: {len(new_guys)}, with {num_new_guys:,} parameters")
+        print(f"num frozen params: {len(frozed_params)}, with {num_frozen_params:,} parameters")
 
         # Create AdamW optimizer and use the fused version if it is available
         fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters

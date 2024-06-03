@@ -171,8 +171,8 @@ model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=bloc
 model.to(device)
 
 # initialize a GradScaler. If enabled=False scaler is a no-op
-scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 
+scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
 optimizer = model.configure_optimizers(weight_decay, learning_rate, (beta1, beta2), device_type)
 
 checkpoint = None
@@ -197,7 +197,6 @@ def estimate_loss():
 if master_process:
     tpi = gradient_accumulation_steps * ddp_world_size * batch_size * block_size
     print(f"In {cut_the_run} iters. we are going to see {cut_the_run*tpi*100/len(train_data):.3f} % of the data")
-
     print(">>>>> Training is starting now, here is some stats:")
     print("batch size",    batch_size) 
     print("weight_decay",  weight_decay)  
@@ -224,13 +223,10 @@ def get_lr(it):
     return min_lr + coeff * (learning_rate - min_lr)
 
 
-# training loop
 
 X, Y = get_batch('train') # fetch the very first batch
-
-
 bench = 3.12
-"""
+
 while iter_num < 20:
 	lr = get_lr(iter_num) 
 
@@ -260,8 +256,4 @@ while iter_num < 20:
 
 	if iter_num >= max_iters:
 		break
-"""
-
-
-
 
