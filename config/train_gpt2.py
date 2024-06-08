@@ -11,10 +11,10 @@ eval_interval = 50   # freq. wandb send
 init_from = "else"
 init_name = "./VL2/VL2_256_1024_4_1.pt"
 scalers = 1
-wandb_log = False 
-wandb_project = 'one_epoch'
-wandb_run_name= init_name[6:]+"agg_lr"
+wandb_log = True 
 
+wandb_project = 'one_epoch'
+wandb_run_name= "freeze"+init_name[6:]
 #
 eval_iters = 20      
 log_interval = 100   
@@ -32,13 +32,3 @@ warmup_iters =  300
 cut_the_run    = max_iters 
 lr_decay_iters = max_iters 
 
-
-#<< delete this please >>#
-gradient_accumulation_steps = 2
-batch_size = 5
-eval_interval = 50   # freq. wandb send
-
-max_iters = 10
-warmup_iters =  300
-cut_the_run    = max_iters 
-lr_decay_iters = max_iters 

@@ -343,21 +343,6 @@ class KronyGPT(nn.Module):
 
         frozed_params = [p  for n,p in param_dict.items() if "scalers" in n] + [param_dict["transformer.wte.weight"]]
 
-        l1 = [
-            n for n, p in param_dict.items() if all([p.dim() >= 2, 
-                                                                n!= "transformer.wte.weight",
-                                                                "scalers" not in n
-                                                    ])
-        ]
-
-        l2 = [n for n, p in param_dict.items() if all([p.dim() < 2, "scalers" not in n])]
-        l3 = [n  for n,p in param_dict.items() if "scalers" in n] + ["transformer.wte.weight"]
-        
-        print(">>>> hey")
-        print("> ",[i for i in l1 if i in l2])
-        print("> ",[i for i in l2 if i in l3])
-        print("> ",[i for i in l1 if i in l3])
-
         optim_groups = [
             {'params': decay_params, 'name':"decay", 'weight_decay': weight_decay},
             {'params': nodecay_params, 'name':"no_decay", 'weight_decay': 0.0 },
@@ -429,3 +414,20 @@ class KronyGPT(nn.Module):
             # append sampled index to the running sequence and continue
             idx = torch.cat((idx, idx_next), dim=1)
         return idx
+
+"""
+        l1 = [
+			n for n, p in param_dict.items() if all([p.dim() >= 2, 
+                                                                n!= "transformer.wte.weight",
+                                                                "scalers" not in n
+                                                    ])
+        ]
+
+        l2 = [n for n, p in param_dict.items() if all([p.dim() < 2, "scalers" not in n])]
+        l3 = [n  for n,p in param_dict.items() if "scalers" in n] + ["transformer.wte.weight"]
+        
+        print(">>>> hey")
+        print("> ",[i for i in l1 if i in l2])
+        print("> ",[i for i in l2 if i in l3])
+        print("> ",[i for i in l1 if i in l3])
+"""

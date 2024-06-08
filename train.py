@@ -293,12 +293,12 @@ while iter_num < 500:
 	lr = get_lr(iter_num) if decay_lr else learning_rate
 	for param_group in optimizer.param_groups:
 		if param_group["name"] != "frozen":
-			print(lr, "for ", param_group["name"])
+#			print(lr, "for ", param_group["name"])
 			param_group['lr'] = lr
 
-	p1 = model.state_dict()["transformer.wte.weight"]
-	p2 = model.state_dict()["transformer.h.8.mlp.c_proj_0"]
-	p3 = model.state_dict()["transformer.wte.weight"]
+#	p1 = model.state_dict()["transformer.wte.weight"]
+#	p2 = model.state_dict()["transformer.h.8.mlp.c_proj_0"]
+#	p3 = model.state_dict()["transformer.wte.weight"]
  
 	#print(p1)
  
