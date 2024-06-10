@@ -340,8 +340,8 @@ class KronyGPT(nn.Module):
         ]
 
         nodecay_params = [p for n, p in param_dict.items() if all([p.dim() < 2, "scalers" not in n])]
-
-        frozed_params = [p  for n,p in param_dict.items() if "scalers" in n] + [param_dict["transformer.wte.weight"]]
+        frozed_params = [p  for n,p in param_dict.items() if "scalers" in n]
+        emb_params = [param_dict["transformer.wte.weight"]]
 
         optim_groups = [
             {'params': decay_params, 'name':"decay", 'weight_decay': weight_decay},
@@ -351,6 +351,11 @@ class KronyGPT(nn.Module):
                 'name':"frozen", 
                 'lr': 0.0
             },
+            {
+                'params': emb_params, 
+                'name':"emb_params", 
+                'lr': 6e-4 
+            }
         ]
 
         num_decay_params = sum(p.numel() for p in decay_params)

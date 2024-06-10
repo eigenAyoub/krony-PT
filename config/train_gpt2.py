@@ -11,10 +11,10 @@ eval_interval = 50   # freq. wandb send
 init_from = "else"
 init_name = "./VL2/VL2_256_1024_4_1.pt"
 scalers = 1
-wandb_log = True 
+wandb_log = True
 
 wandb_project = 'one_epoch'
-wandb_run_name= "freeze"+init_name[6:]
+wandb_run_name= "freeze_only_scalers_"+init_name[6:]
 #
 eval_iters = 20      
 log_interval = 100   
@@ -24,11 +24,16 @@ block_size = 1024
 
 learning_rate = 0.0018
 weight_decay = 1e-1
-min_lr = 6e-4
+min_lr = 6e-5
 
-decay_lr = True 
+decay_lr = True
 
-warmup_iters =  300
+warmup_iters =  0
 cut_the_run    = max_iters 
 lr_decay_iters = max_iters 
 
+### delete:
+#gradient_accumulation_steps = 1
+#batch_size = 8
+#wandb_log = False 
+#cut_the_run = 10
