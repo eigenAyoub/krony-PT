@@ -112,7 +112,7 @@ if master_process:
     os.makedirs(out_dir, exist_ok=True)
 
 # 107 is the OG random seed, anything else is fake news.
-torch.manual_seed(107 + seed_offset)
+torch.manual_seed(4 + seed_offset)
 
 torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
 torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn

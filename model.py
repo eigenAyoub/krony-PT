@@ -349,12 +349,12 @@ class KronyGPT(nn.Module):
             {
                 'params': frozed_params, 
                 'name':"frozen", 
-                'lr': 0.0
+                'lr': 6e-5
             },
             {
                 'params': emb_params, 
                 'name':"emb_params", 
-                'lr': 6e-4 
+                'lr': 6e-5
             }
         ]
 

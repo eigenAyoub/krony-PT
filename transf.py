@@ -33,7 +33,8 @@ config_args = dict(
     block_size = 1024,
     bias = True,
     dim_1 = dim1,
-    dim_2 = dim2, 
+    dim_2 = dim2,
+	scalers = 1,
     factors = facs
 )
 
