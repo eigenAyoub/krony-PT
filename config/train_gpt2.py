@@ -18,7 +18,7 @@ scalers = 1
 wandb_log = True
 
 wandb_project = 'one_epoch'
-wandb_run_name= "5_4_4_4_var_lr_"+init_name[6:]
+wandb_run_name= "5_4_4_4_var_lr_e_4"+init_name[6:]
 
 #wandb_run_name= ""+init_name[9:]
 eval_iters = 20      

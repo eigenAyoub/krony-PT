@@ -332,6 +332,7 @@ class KronyGPT(nn.Module):
         # all biases and layernorms don't.
         
         #decay_params = [p for n, p in param_dict.items() if all([p.dim() >= 2, not n.endswith("_1"), not n.endswith("_0")])]
+
         decay_params = [
             p for n, p in param_dict.items() if all([p.dim() >= 2, 
                                                                 n!= "transformer.wte.weight",
@@ -349,12 +350,12 @@ class KronyGPT(nn.Module):
             {
                 'params': frozed_params, 
                 'name':"frozen", 
-                'lr': 6e-5
+                'lr': 6e-4
             },
             {
                 'params': emb_params, 
                 'name':"emb_params", 
-                'lr': 6e-5
+                'lr': 6e-4
             }
         ]
 
