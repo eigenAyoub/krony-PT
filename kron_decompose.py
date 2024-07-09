@@ -162,10 +162,14 @@ kronyG.load_state_dict(kron_decomp)
 
 print("3. Saving!")
 
-torch.save(kron_decomp, f"VL2/VL2_{dim1}_{dim2}_{factors}_{scalers_}.pt")
+#torch.save(kron_decomp, f"VL2/VL2_{dim1}_{dim2}_{factors}_{scalers_}.pt")
 
-print("Some dimensions for the eye:")
 
+
+
+
+
+print("Some dimensions for the eye-bugging:")
 i = 5
 c_fc_key = f"transformer.h.{i}.mlp.c_fc.weight"
 c_proj_key = f"transformer.h.{i}.mlp.c_proj.weight"
