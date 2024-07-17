@@ -13,7 +13,6 @@ import sys
 import numpy as np  
 
 device = "cuda"
-print("wtf?????????????????")
 model_dir = sys.argv[1]  # model directory, usually a number. Model usually stored in ./hf/number
 data = ""
 if len(sys.argv) > 2:

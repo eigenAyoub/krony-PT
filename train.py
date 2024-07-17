@@ -303,6 +303,8 @@ while iter_num < cut_the_run:
 	if iter_num % eval_interval == 0 and master_process:
 		losses = estimate_loss()
 		print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+		lambada_ppl = model.get_lambada_ppl()
+		print("the lambada score >> ", lambada_ppl)
 		if wandb_log:
 			if model_args["scalers"]:
 				sc4 = model.state_dict()["transformer.h.0.mlp.scalers_fc"]

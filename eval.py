@@ -12,7 +12,7 @@ device = "cuda"
 
 model_dir = sys.argv[1] # .pt link. e.g., check2/blabla.pt 
 dataset   = sys.argv[2] # .pt link. e.g., check2/blabla.pt 
-
+scalers_   = 0
 
 if model_dir == "gpt2":
     model  = GPT2LMHeadModel.from_pretrained("openai-community/gpt2").to(device)
@@ -20,13 +20,21 @@ elif model_dir == "distilgpt":
     model  = GPT2LMHeadModel.from_pretrained("openai-community/gpt2").to(device)
 else:
     sd_krony =  torch.load(model_dir)
+
     c_proj   = sd_krony["transformer.h.0.mlp.c_proj_0"].shape
     dim1     = c_proj[2] 
     dim2     = c_proj[1] 
     facs     = c_proj[0] 
 
-    if True: # should be a test on scalers.
-        pass
+    if "transformer.h.0.mlp.scalers_proj" in sd_krony.keys(): 
+        print("Scalers are in!")
+        scalers_ = 1
+    else: 
+        print("Scalers are NOT in!")
+        scalers_ = 0
+        
+    print(f"# factors = {facs}")
+    print(f"# dims of mlp.c_proj >> [{dim1, dim2}]")
 
     config_args = dict(
         n_layer=12, 
@@ -37,7 +45,7 @@ else:
         bias = True,
         dim_1 = dim1,
         dim_2 = dim2,
-        scalers = 1,
+        scalers = scalers_,
         factors = facs
     )
 
@@ -90,3 +98,6 @@ for begin_loc in tqdm(range(0, seq_len, stride)):
 
 ppl = torch.exp(torch.stack(nlls).mean())
 print(ppl.item())
+
+print(f"\n>> Model >> {model_dir}")
+print(f"For > {dataset} << \n")
