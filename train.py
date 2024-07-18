@@ -294,17 +294,14 @@ while iter_num < cut_the_run:
 		#print("the `lr` for ", param_group["name"], " = ",param_group["lr"])
 		if param_group["name"] not in {"frozen", "emb_params"}:
 			param_group['lr'] = lr
-
-	#p1 = model.state_dict()["transformer.wte.weight"]
-	#p2 = model.state_dict()["transformer.h.8.mlp.c_proj_0"]
-	#p3 = model.state_dict()["transformer.wte.weight"]
-	#print(p1)
  
 	if iter_num % eval_interval == 0 and master_process:
 		losses = estimate_loss()
 		print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 		lambada_ppl = model.get_lambada_ppl()
-		print("the lambada score >> ", lambada_ppl)
+		wiki_ppl = model.get_wiki_ppl()
+		print(f"The lambada score >> {lambada_ppl}")
+		print(f"The wiki score >> {wiki_ppl} \n")
 		if wandb_log:
 			if model_args["scalers"]:
 				sc4 = model.state_dict()["transformer.h.0.mlp.scalers_fc"]
@@ -329,7 +326,10 @@ while iter_num < cut_the_run:
 					"train/loss": losses['train'],
 					"val/loss": losses['val'],
 					"lr": lr,
+                    "lambada_ppl":lambada_ppl,
+                    "wiki_ppl": wiki_ppl
 				})
+
 		if losses["val"] < bench:
 			bench = losses["val"]
 			print(f"Saving the checkpoint at iteration {iter_num}! for {bench}")
