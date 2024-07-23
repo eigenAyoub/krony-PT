@@ -16,6 +16,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+from tqdm import tqdm
 from typing import List
 
 import torch._dynamo
@@ -501,3 +502,37 @@ class KronyGPT(nn.Module):
 
         ppl = torch.exp(torch.stack(nlls).mean())
         return ppl 
+
+    @torch.no_grad()
+    def get_ppl(self, encodings):
+        max_length = 1024 
+        stride     = 1024
+        seq_len    = encodings.input_ids.size(1)
+        device = "cuda"
+        nlls = []
+        prev_end_loc = 0
+
+        for begin_loc in tqdm(range(0, seq_len, stride)):
+            end_loc = min(begin_loc + max_length, seq_len)
+            trg_len = end_loc - prev_end_loc  # may be different from stride on last loop
+            input_ids = encodings.input_ids[:, begin_loc:end_loc].to(device)
+            target_ids = encodings.input_ids[:, begin_loc+1:end_loc+1].to(device) ## this is the karpathy way!
+            target_ids[:, :-trg_len] = -100
+
+            if input_ids.shape[1] < stride:
+                input_ids = input_ids[:,:-1]
+            
+            with torch.no_grad():
+                _ , neg_log_likelihood = self(input_ids, target_ids)
+
+            nlls.append(neg_log_likelihood)
+
+            prev_end_loc = end_loc
+            if end_loc == seq_len:
+                break
+
+        ppl = torch.exp(torch.stack(nlls).mean())
+        return ppl 
+
+
+

@@ -1,11 +1,16 @@
 # Change the dims / path to the .pt file.
 # torchrun --standalone --nproc_per_node=8 train.py config/train_gpt2.py
 
-max_iters = 100000 
+max_iters = 60000 
 
 gradient_accumulation_steps = 5
 batch_size = 64
+batch_size = 2
 eval_interval = 50   # freq. wandb send
+
+gradient_accumulation_steps = 2
+batch_size = 2
+eval_interval = 2   
 
 # wandb 
 init_from = "else"
@@ -13,7 +18,7 @@ init_from = "else"
 init_name = "check2/81M_768_768_mixed_lr_2_continuation_iteration_15900.pt"
 
 scalers = 0
-wandb_log = True 
+wandb_log = False 
 
 wandb_project = 'ppl'
 wandb_run_name= "81M_768_768_mixed_lr_2_continuation_2"

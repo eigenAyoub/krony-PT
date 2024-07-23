@@ -30,6 +30,8 @@ from torch.distributed import init_process_group, destroy_process_group
 from model import KronyGPTConfig, KronyGPT
 import matplotlib.pyplot as plt
 
+from tqdm import tqdm
+
 if True:
     cut_the_run = 0
     init_name = "hallo"
@@ -105,14 +107,13 @@ else:
     seed_offset = 1350
     ddp_world_size = 1
 
-
 ddp = int(os.environ.get('RANK', -1)) != -1 # is this a ddp run?
 
 if master_process:
     os.makedirs(out_dir, exist_ok=True)
 
 # 107 is the OG random seed, anything else is fake news.
-torch.manual_seed(4 + seed_offset)
+torch.manual_seed(77 + seed_offset)
 
 torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
 torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
@@ -286,7 +287,22 @@ local_iter_num = 0 # number of iterations in the lifetime of this process
 raw_model = model.module if ddp else model # unwrap DDP container if needed
 running_mfu = -1.0
 
-bench = 3.12
+## some sneaky stuff // hf datasets:
+from datasets import load_from_disk
+from transformers import GPT2TokenizerFast
+
+lambada_dataset = load_from_disk("datasets/lambada")
+wiki_dataset    = load_from_disk("datasets/wiki1")
+tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+
+lambada_encodings = tokenizer("\n\n".join(lambada_dataset["text"]), return_tensors="pt")
+wiki_encodings 	  = tokenizer("\n\n".join(wiki_dataset["text"]), return_tensors="pt")
+##
+
+bench = 3.06
+lambada_bench = 60
+wiki_bench    = 41
+
 while iter_num < cut_the_run:
 # determine and set the learning rate for this iteration
 	lr = get_lr(iter_num) if decay_lr else learning_rate
@@ -298,8 +314,8 @@ while iter_num < cut_the_run:
 	if iter_num % eval_interval == 0 and master_process:
 		losses = estimate_loss()
 		print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-		lambada_ppl = model.get_lambada_ppl()
-		wiki_ppl = model.get_wiki_ppl()
+		lambada_ppl = model.get_ppl(lambada_encodings)
+		wiki_ppl = model.get_ppl(wiki_encodings)
 		print(f"The lambada score >> {lambada_ppl}")
 		print(f"The wiki score >> {wiki_ppl} \n")
 		if wandb_log:
@@ -330,10 +346,15 @@ while iter_num < cut_the_run:
                     "wiki_ppl": wiki_ppl
 				})
 
-		if losses["val"] < bench:
-			bench = losses["val"]
+#		if losses["val"] < bench:
+		if lambada_ppl < lamabada_bench or wiki_ppl < wiki_bench:
+			#bench = losses["val"]
 			print(f"Saving the checkpoint at iteration {iter_num}! for {bench}")
 			torch.save(model.state_dict(), f"check2/{wandb_run_name}_iteration_{iter_num}.pt")
+			if lambada_ppl < lambada_bench:
+				lambada_bench = lambada_ppl
+			if wiki_ppl < wiki_bench:
+				wiki_bench = wiki_ppl
 
 	if iter_num == 0 and eval_only:
 		break
