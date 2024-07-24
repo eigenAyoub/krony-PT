@@ -297,9 +297,11 @@ tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
 
 lambada_encodings = tokenizer("\n\n".join(lambada_dataset["text"]), return_tensors="pt")
 wiki_encodings 	  = tokenizer("\n\n".join(wiki_dataset["text"]), return_tensors="pt")
-##
+
+## some sneaky stuff // hf datasets:
 
 bench = 3.06
+
 lambada_bench = 60
 wiki_bench    = 41
 
@@ -347,7 +349,7 @@ while iter_num < cut_the_run:
 				})
 
 #		if losses["val"] < bench:
-		if lambada_ppl < lamabada_bench or wiki_ppl < wiki_bench:
+		if lambada_ppl < lambada_bench or wiki_ppl < wiki_bench:
 			#bench = losses["val"]
 			print(f"Saving the checkpoint at iteration {iter_num}! for {bench}")
 			torch.save(model.state_dict(), f"check2/{wandb_run_name}_iteration_{iter_num}.pt")

@@ -1,5 +1,6 @@
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
-from datasets import load_dataset
+#from datasets import load_dataset
+from datasets import load_from_disk
 import torch
 from tqdm import tqdm
 from model import *
@@ -49,23 +50,16 @@ else:
         factors = facs
     )
 
-    krony_conf = KronyGPTConfig(**config_args)
-    sd = torch.load(model_dir)
-    krony = KronyGPT(krony_conf).to(device)
-    krony.load_state_dict(sd)
+
+krony_conf = KronyGPTConfig(**config_args)
+sd = torch.load(model_dir)
+krony = KronyGPT(krony_conf).to(device)
+krony.load_state_dict(sd)
 
 # dataset:
-wiki = ['wikitext-103-v1', 'wikitext-2-v1']
-if dataset == "wiki103":
-    test = load_dataset("wikitext", wiki[0], split="test")
-elif dataset == "wiki2":
-    test = load_dataset("wikitext", wiki[1], split="test")
-elif dataset == "lambada":
-    test = load_dataset("lambada", split="test")
-elif dataset == "ptb":
-    test = load_dataset("ptb", split="test")
+assert dataset in {"lambada", "wiki1", "wiki2"}
 
-
+test = load_from_disk(f"datasets/{dataset}")
 tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
 encodings = tokenizer("\n\n".join(test["text"]), return_tensors="pt")
 
@@ -99,5 +93,5 @@ for begin_loc in tqdm(range(0, seq_len, stride)):
 ppl = torch.exp(torch.stack(nlls).mean())
 print(ppl.item())
 
-print(f"\n>> Model >> {model_dir}")
-print(f"For > {dataset} << \n")
+
+print(f"PPL for >> {dataset} || Model >> {model_dir}")
