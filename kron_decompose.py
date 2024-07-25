@@ -139,10 +139,8 @@ kronyG = KronyGPT(krony_conf)
 krony_sd   = kronyG.state_dict()
 k_krony    = krony_sd.keys()
 
-#scalers_keys = [k for k in k_krony if "scalers" in k]
-#print("the scalers are", scalers_keys)
 
-print("Decompositio hao")
+print("Begin decomposition:")
 kron_decomp = kron_it_2(gpt2_sd, config_args)
 
 decomp_keys = list(kron_decomp.keys())
@@ -157,13 +155,6 @@ rest = [i for i in k_krony if i not in kron_decomp.keys()]
 for r_key in rest:
 	assert krony_sd[r_key].shape == gpt2_sd[r_key].shape, "dimensions do not match"
 	kron_decomp[r_key] = gpt2_sd[r_key]
-
-kronyG.load_state_dict(kron_decomp) 
-
-print("3. Saving!")
-
-#torch.save(kron_decomp, f"VL2/VL2_{dim1}_{dim2}_{factors}_{scalers_}.pt")
-
 
 
 
@@ -185,8 +176,91 @@ print(proj_0, kron_decomp[proj_0].shape)
 print(proj_1, kron_decomp[proj_1].shape)
 
 
+print("Some weights")
+
+for lay in range(0):
+
+	gpt_fc_   =  f'transformer.h.{lay}.mlp.c_fc.weight'
+	gpt_proj_ =  f'transformer.h.{lay}.mlp.c_proj.weight'
+
+	gpt_fc   =  gpt2_sd[gpt_fc_] 
+	gpt_proj =  gpt2_sd[gpt_proj_] 
+
+	fc_0   = kron_decomp[f"transformer.h.{lay}.mlp.c_fc_0"]
+	fc_1   = kron_decomp[f"transformer.h.{lay}.mlp.c_fc_1"]
+
+	s_fc = torch.kron(fc_0[0], fc_1[0])
+	#for i in range(1,4):
+	#	s_fc += torch.kron(fc_0[i], fc_1[i])
+
+	proj_0   = kron_decomp[f"transformer.h.{lay}.mlp.c_proj_0"]
+	proj_1   = kron_decomp[f"transformer.h.{lay}.mlp.c_proj_1"]
+
+	s_proj = torch.kron(proj_0[0], proj_1[0])
+	#for i in range(1,4):
+	#	s_proj += torch.kron(proj_0[i], proj_1[i])
+
+	# Frobenius Norm
+	print(f">>>>> For layer {lay}")
+
+	nrm = "fro"
+#	nrm = 1
+
+	frobenius_gpt_fc = torch.norm(gpt_fc, nrm).item()
+	frobenius_krony_fc = torch.norm(s_fc, nrm).item()
+
+	frobenius_gpt_proj   = torch.norm(gpt_proj, nrm).item()
+	frobenius_krony_proj = torch.norm(s_proj, nrm).item()
+
+	#print(">> Before norms:")
+	#print(f"Norm: {frobenius_gpt_fc, frobenius_krony_fc}")
+	#print(f"Norm: {frobenius_gpt_proj, frobenius_krony_proj}")
+
+	alpha_fc   = frobenius_gpt_fc / frobenius_krony_fc
+	alpha_proj = frobenius_gpt_proj / frobenius_krony_proj
+
+	#print("fc_1, and proj_1 before")
+	#print(fc_1)
+	#print(proj_1)
+
+	#print("fc_1, and proj_1 After: ")
+	#print(fc_1)
+	#print(proj_1)
+
+	kron_decomp[f"transformer.h.{lay}.mlp.c_fc_1"][0]   = fc_1 * alpha_fc
+	kron_decomp[f"transformer.h.{lay}.mlp.c_proj_1"][0] =  proj_1 * alpha_proj
+
+
+	print("After norms:")
+ 
+	fc_1   = kron_decomp[f"transformer.h.{lay}.mlp.c_fc_1"]
+	s_fc = torch.kron(fc_0[0], fc_1[0])
+	proj_1   = kron_decomp[f"transformer.h.{lay}.mlp.c_proj_1"]
+	s_proj = torch.kron(proj_0[0], proj_1[0])
+	
+	frobenius_gpt_fc = torch.norm(gpt_fc, nrm).item()
+	frobenius_krony_fc = torch.norm(s_fc, nrm).item()
+
+	frobenius_gpt_proj   = torch.norm(gpt_proj, nrm).item()
+	frobenius_krony_proj = torch.norm(s_proj, nrm).item()
+
+	print(f"Norm: {frobenius_gpt_fc, frobenius_krony_fc}")
+	print(f"Norm: {frobenius_gpt_proj, frobenius_krony_proj}")
+ 
+ 
+print("3. Saving!")
+kronyG.load_state_dict(kron_decomp) 
+torch.save(kron_decomp, f"decomps/95M_{dim1}_{dim2}_{factors}_{scalers_}_normal_VL.pt")
 
 """
+	# L1 Norm
+	l1_norm = torch.norm(gpt_fc, 1)
+	print(f"L1 norm: {l1_norm}")
+
+	# L2 Norm
+	l2_norm = torch.norm(A, 2)
+	print(f"L2 norm: {l2_norm}")
+
 # test of decomposition of one Kronecker matrix:
 def quick_test(k_gpt2, ff: int):
 	# Test if the sum of factors of Kroneckers is equal to the original one.

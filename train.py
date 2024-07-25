@@ -291,16 +291,19 @@ running_mfu = -1.0
 from datasets import load_from_disk
 from transformers import GPT2TokenizerFast
 
-lambada_dataset = load_from_disk("datasets/lambada")
-wiki_dataset    = load_from_disk("datasets/wiki1")
-tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+lambada_dataset   = load_from_disk("datasets/lambada")
+wiki_dataset      = load_from_disk("datasets/wiki1")
+wiki2_dataset     = load_from_disk("datasets/wiki2")
+
+tokenizer         = GPT2TokenizerFast.from_pretrained("gpt2")
 
 lambada_encodings = tokenizer("\n\n".join(lambada_dataset["text"]), return_tensors="pt")
 wiki_encodings 	  = tokenizer("\n\n".join(wiki_dataset["text"]), return_tensors="pt")
+wiki2_encodings   = tokenizer("\n\n".join(wiki2_dataset["text"]), return_tensors="pt")
 
-## some sneaky stuff // hf datasets:
+## some sneaky stuff // hf datasets
 
-bench = 3.06
+bench = 3.10
 
 lambada_bench = 60
 wiki_bench    = 41
@@ -318,8 +321,11 @@ while iter_num < cut_the_run:
 		print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 		lambada_ppl = model.get_ppl(lambada_encodings)
 		wiki_ppl = model.get_ppl(wiki_encodings)
+		wiki2_ppl = model.get_ppl(wiki2_encodings)
 		print(f"The lambada score >> {lambada_ppl}")
 		print(f"The wiki score >> {wiki_ppl} \n")
+		print(f"The wiki score >> {wiki2_ppl} \n")
+
 		if wandb_log:
 			if model_args["scalers"]:
 				sc4 = model.state_dict()["transformer.h.0.mlp.scalers_fc"]
@@ -336,7 +342,10 @@ while iter_num < cut_the_run:
 					"scaler:0_11": sc4_11[0], 
 					"scaler:1_11": sc4_11[1], 
 					"scaler:2_11": sc4_11[2], 
-					"scaler:3_11": sc4_11[3] 
+					"scaler:3_11": sc4_11[3],
+                    "lambada_ppl":lambada_ppl,
+                    "wiki_ppl": wiki_ppl,
+                    "wiki2_ppl": wiki2_ppl
 				})
 			else:
 				wandb.log({
@@ -345,7 +354,8 @@ while iter_num < cut_the_run:
 					"val/loss": losses['val'],
 					"lr": lr,
                     "lambada_ppl":lambada_ppl,
-                    "wiki_ppl": wiki_ppl
+                    "wiki_ppl": wiki_ppl,
+                    "wiki2_ppl": wiki2_ppl
 				})
 
 #		if losses["val"] < bench:
